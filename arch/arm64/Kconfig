@@ -1649,6 +1649,13 @@ config MACH_XIAOMI_SWEET
         select MACH_XIAOMI_SDMMAGPIE
         help
           Support for Redmi Note 10 Pro, codenamed sweet.
+          
+
+config MACH_XIAOMI_COURBET
+        bool "courbet board"
+        select MACH_XIAOMI_SDMMAGPIE
+        help
+          Support for Mi 11 Lite, condenamed courbet.
 endmenu
 
 endmenu
