@@ -1528,11 +1528,12 @@ static int drm_notifier_callback(struct notifier_block *self, unsigned long even
 	int blank;
 	struct fts_ts_data *ts_data = container_of(self, struct fts_ts_data, msm_drm_notifier);
 
-	if (msm_drm_event && msm_drm_event->data && fts_data) {
+        if (msm_drm_event && msm_drm_event->data && fts_data) {
 		blank = *(int *)(msm_drm_event->data);
 		FTS_INFO("notifier tp event:%d, code:%d.", event, blank);
 		flush_workqueue(fts_data->ts_workqueue);
-		if (event == MSM_DRM_EARLY_EVENT_BLANK && blank == MSM_DRM_BLANK_POWERDOWN) {
+		if (event == MSM_DRM_EARLY_EVENT_BLANK && (blank == MSM_DRM_BLANK_POWERDOWN ||
+			blank == MSM_DRM_BLANK_LP1 || blank == MSM_DRM_BLANK_LP2)) {
 			FTS_INFO("touchpanel suspend by %s", blank == MSM_DRM_BLANK_POWERDOWN ? "blank" : "doze");
 			cancel_work_sync(&fts_data->resume_work);
 			fts_ts_suspend(ts_data->dev);
@@ -2234,6 +2235,8 @@ err_power_init:fts_power_source_exit(ts_data);
 		gpio_free(ts_data->pdata->reset_gpio);
 	if (gpio_is_valid(ts_data->pdata->irq_gpio))
 		gpio_free(ts_data->pdata->irq_gpio);
+	if (gpio_is_valid(ts_data->pdata->vcc_i2c))
+		gpio_free(ts_data->pdata->vcc_i2c);
 err_gpio_config:kfree_safe(ts_data->touch_buf);
 err_buffer_init:input_unregister_device(ts_data->input_dev);
 

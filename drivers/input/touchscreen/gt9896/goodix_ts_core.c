@@ -40,10 +40,6 @@
 #endif
 #include "../xiaomi/xiaomi_touch.h"
 
-#ifdef CONFIG_TOUCHSCREEN_COMMON
-#include <linux/input/tp_common.h>
-#endif
-
 #define GOOIDX_INPUT_PHYS			"goodix_ts/input0"
 #define PINCTRL_STATE_ACTIVE		"pmx_ts_active"
 #define PINCTRL_STATE_SUSPEND		"pmx_ts_suspend"
@@ -658,7 +654,6 @@ static ssize_t goodix_ts_irq_info_store(struct device *dev,
 	return count;
 }
 
-#ifdef CONFIG_TOUCHSCREEN_GOODIX_GTX9896_TOOLS
 /* open short test */
 static ssize_t goodix_ts_tp_test_show(struct device *dev,
 		struct device_attribute *attr,
@@ -730,7 +725,6 @@ static ssize_t goodix_ts_tp_test_store(struct device *dev,
 
 	return count;
 }
-#endif
 
 /*reg read/write */
 static u16 rw_addr;
@@ -901,10 +895,8 @@ static DEVICE_ATTR(send_cfg, S_IWUSR | S_IWGRP, NULL, goodix_ts_send_cfg_store);
 static DEVICE_ATTR(read_cfg, S_IRUGO, goodix_ts_read_cfg_show, NULL);
 static DEVICE_ATTR(irq_info, S_IRUGO | S_IWUSR | S_IWGRP,
 		goodix_ts_irq_info_show, goodix_ts_irq_info_store);
-#ifdef CONFIG_TOUCHSCREEN_GOODIX_GTX9896_TOOLS
 static DEVICE_ATTR(tp_test, S_IRUGO | S_IWUSR | S_IWGRP, goodix_ts_tp_test_show,
 		goodix_ts_tp_test_store);
-#endif
 static DEVICE_ATTR(reg_rw, S_IRUGO | S_IWUSR | S_IWGRP,
 		goodix_ts_reg_rw_show, goodix_ts_reg_rw_store);
 
@@ -919,9 +911,7 @@ static struct attribute *sysfs_attrs[] = {
 	&dev_attr_send_cfg.attr,
 	&dev_attr_read_cfg.attr,
 	&dev_attr_irq_info.attr,
-#ifdef CONFIG_TOUCHSCREEN_GOODIX_GTX9896_TOOLS
 	&dev_attr_tp_test.attr,
-#endif
 	&dev_attr_reg_rw.attr,
 	&dev_attr_fod_test.attr,
 	NULL,
@@ -1051,33 +1041,6 @@ static void goodix_ts_wq_exit(struct goodix_ts_core *core_data)
 #endif
 }
 
-#ifdef CONFIG_TOUCHSCREEN_COMMON
-static ssize_t double_tap_show(struct kobject *kobj,
-				struct kobj_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", goodix_core_data->double_wakeup);
-}
-
-static ssize_t double_tap_store(struct kobject *kobj,
-				struct kobj_attribute *attr, const char *buf,
-                                size_t count)
-{
-	int rc, val;
-
-	rc = kstrtoint(buf, 10, &val);
-	if (rc)
-		return -EINVAL;
-
-	goodix_core_data->double_wakeup = !!val;
-	return count;
-}
-
-static struct tp_common_ops double_tap_ops = {
-	.show = double_tap_show,
-	.store = double_tap_store
-};
-#endif
-
 /* event notifier */
 static BLOCKING_NOTIFIER_HEAD(ts_notifier_list);
 /**
@@ -1184,7 +1147,7 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 			input_mt_slot(dev, i);
 			input_mt_report_slot_state(dev, MT_TOOL_FINGER, false);
 			if (__test_and_clear_bit(i, &core_data->touch_id)) {
-				ts_debug("finger report leave:%d", i);
+				ts_info("finger report leave:%d", i);
 				pre_coords[i].status = 0;
 			}
 			continue;
@@ -1204,13 +1167,13 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 				touch_data->coords[i].y - pre_coords[i].y) &&
 				test_bit(i, &core_data->touch_id) &&
 				pre_coords[i].status == 0) {
-			ts_debug("finger report move:%d", i);
+			ts_notice("finger report move:%d", i);
 			pre_coords[i].status = 1;
 		}
 		pre_coords[i].x = (u16)touch_data->coords[i].x;
 		pre_coords[i].y = (u16)touch_data->coords[i].y;
 		if (!__test_and_set_bit(i, &core_data->touch_id)) {
-				ts_debug("finger report press:%d", i);
+				ts_info("finger report press:%d", i);
 		}
 		/*ts_info("Report x=%d, y=%d, touch_major=%d, overlapping_area=%d",
                        touch_data->coords[i].x, touch_data->coords[i].y,
@@ -2229,7 +2192,8 @@ int goodix_ts_fb_notifier_callback(struct notifier_block *self,
 			ts_debug("notifier tp event:%d, code:%d.", event, blank);
 			ts_debug("touchpanel resume");
 			queue_work(core_data->event_wq, &core_data->resume_work);
-		} else if (event == MSM_DRM_EVENT_BLANK && blank == MSM_DRM_BLANK_POWERDOWN) {
+		} else if (event == MSM_DRM_EVENT_BLANK && (blank == MSM_DRM_BLANK_POWERDOWN ||
+			blank == MSM_DRM_BLANK_LP1 || blank == MSM_DRM_BLANK_LP2)) {
 			ts_debug("notifier tp event:%d, code:%d.", event, blank);
 			ts_debug("touchpanel suspend by %s", blank == MSM_DRM_BLANK_POWERDOWN ? "blank" : "doze");
 			queue_work(core_data->event_wq, &core_data->suspend_work);
@@ -2545,8 +2509,6 @@ static ssize_t goodix_fw_version_info_read(struct file *file, char __user *buf,
 static const struct file_operations goodix_fw_version_info_ops = {
 	.read = goodix_fw_version_info_read,
 };
-
-#ifdef CONFIG_TOUCHSCREEN_GOODIX_GTX9896_TOOLS
 static int gtp_i2c_test(void)
 {
 	int ret = 0;
@@ -2661,6 +2623,7 @@ static const struct file_operations gtp_selftest_ops = {
 	.write = goodix_selftest_write,
 };
 
+
 static ssize_t goodix_data_dump_read(struct file *file, char __user *buf,
 				size_t count, loff_t *pos)
 {
@@ -2706,7 +2669,6 @@ out:
 static const struct file_operations gtp_data_dump_ops = {
 	.read = goodix_data_dump_read,
 };
-#endif
 
 #ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
 static struct xiaomi_touch_interface xiaomi_touch_interfaces;
@@ -3227,14 +3189,6 @@ static int goodix_ts_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-#ifdef CONFIG_TOUCHSCREEN_COMMON
-	r = tp_common_set_double_tap_ops(&double_tap_ops);
-	if (r < 0) {
-		ts_err("%s: Failed to create double_tap node err=%d\n",
-		__func__, r);
-	}
-#endif
-
 	core_data->event_wq = alloc_workqueue("gtp-event-queue",
 				WQ_UNBOUND | WQ_HIGHPRI | WQ_CPU_INTENSIVE, 1);
 	if (!core_data->event_wq) {
@@ -3287,12 +3241,10 @@ static int goodix_ts_probe(struct platform_device *pdev)
 		proc_create("tp_lockdown_info", 0664, NULL, &goodix_lockdown_info_ops);
 	core_data->tp_fw_version_proc =
 		proc_create("tp_fw_version", 0444, NULL, &goodix_fw_version_info_ops);
-#ifdef CONFIG_TOUCHSCREEN_GOODIX_GTX9896_TOOLS
 	core_data->tp_selftest_proc =
 		proc_create("tp_selftest", 0644, NULL, &gtp_selftest_ops);
 	core_data->tp_data_dump_proc =
 		proc_create("tp_data_dump", 0644, NULL, &gtp_data_dump_ops);
-#endif
 	core_data->debugfs = debugfs_create_dir("tp_debug", NULL);
 	if (core_data->debugfs) {
 		debugfs_create_file("switch_state", 0660, core_data->debugfs, core_data,
