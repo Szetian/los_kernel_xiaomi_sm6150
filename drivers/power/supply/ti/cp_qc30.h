@@ -104,6 +104,7 @@ enum hvdcp3_type {
 #define JEITA_WARM_THR			480
 #define JEITA_COOL_NOT_ALLOW_CP_THR			100
 
+
 /*
  * add hysteresis for warm threshold to avoid flash
  * charge and normal charge switch frequently at
@@ -192,6 +193,7 @@ struct bq2597x {
 	int  bus_temp;
 	int  die_temp;
 	int  bus_error_status;
+	int  sc8551_charge_mode;
 };
 
 struct sw_charger {
