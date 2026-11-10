@@ -31,7 +31,7 @@
 
 #if XIAOMI_DRM_INTERFACE_WA
 #include <drm/drm_bridge.h>
-#include <drm/drm_notifier.h>
+#include <linux/msm_drm_notify.h>
 
 #define FP_UNLOCK_REJECTION_TIMEOUT   1500
 
@@ -650,13 +650,13 @@ static int sf_fb_notifier_callback(struct notifier_block *self,
     blank = *(int *)evdata->data;
 #if XIAOMI_DRM_INTERFACE_WA
 
-    if (event == DRM_EVENT_BLANK) {
+    if (event == MSM_DRM_EVENT_BLANK) {
         switch (blank) {
-            case DRM_BLANK_UNBLANK:
+            case MSM_DRM_BLANK_UNBLANK:
                 ctl_dev->is_fb_black = false;
                 break;
 
-            case DRM_BLANK_POWERDOWN:
+            case MSM_DRM_BLANK_POWERDOWN:
                 ctl_dev->is_fb_black = true;
                 break;
 
@@ -707,7 +707,7 @@ static int sf_remove(sf_device_t *spi)
         adf_unregister_client(&sf_ctl_dev.adf_event_block);
 #else
 #if XIAOMI_DRM_INTERFACE_WA
-        drm_unregister_client(&sf_ctl_dev.notifier);
+        msm_drm_unregister_client(&sf_ctl_dev.notifier);
 #else
         fb_unregister_client(&sf_ctl_dev.notifier);
 #endif
@@ -908,7 +908,7 @@ static int sf_probe(sf_device_t *dev)
 #if XIAOMI_DRM_INTERFACE_WA
     sf_ctl_dev.is_fb_black = false;
     INIT_WORK(&sf_ctl_dev.work_drm, sf_drm_notification_work);
-    drm_register_client(&sf_ctl_dev.notifier);
+    msm_drm_register_client(&sf_ctl_dev.notifier);
 #else
     fb_register_client(&sf_ctl_dev.notifier);
 #endif
@@ -1561,7 +1561,7 @@ static void __exit sf_ctl_driver_exit(void)
     xprintk(KERN_INFO, "fortsense fingerprint device control driver released.\n");
 }
 
-module_init(sf_ctl_driver_init);
+late_initcall(sf_ctl_driver_init);
 module_exit(sf_ctl_driver_exit);
 
 MODULE_DESCRIPTION("The device control driver for Fortsense's fingerprint sensor.");
